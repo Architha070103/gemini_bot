@@ -64,7 +64,7 @@ def process_file(file_path, file_type):
 def index():
     if "history" not in session:
         session["history"] = []
-    return render_template("index.html", history=session["history"])
+    return render_template("templates//index.html", history=session["history"])
 
 @app.route("/predict", methods=["POST"])
 def predict():
