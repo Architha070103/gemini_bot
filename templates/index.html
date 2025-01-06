@@ -150,11 +150,11 @@
                 <button id="file-upload-btn" class="btn btn-outline-secondary" type="button">
                     <i class="fas fa-upload"></i>
                 </button>
-                <button id="record-audio-btn" class="btn btn-outline-secondary" type="button">
+                <button id="record-audio-btn" name="audio" class="btn btn-outline-secondary" type="button">
                     <i class="fas fa-microphone"></i>
                 </button>
             </div>
-            <input type="file" id="file-upload" name="file" accept="image/*" style="display: none;">
+            <input type="file" id="file-upload" name="file" multiple style="display: none;">
             <button type="button" id="submit-btn" class="btn btn-primary w-100 mt-3">
                 <i class="fas fa-paper-plane"></i> Submit
             </button>
@@ -175,50 +175,215 @@
 
     document.getElementById('file-upload').addEventListener('change', function(event) {
         const files = event.target.files;
-        const imagesContainer = document.getElementById('textarea-images');
+        const filesContainer = document.getElementById('textarea-images');
+        filesContainer.innerHTML = ''; // Clear previous files
 
         for (const file of files) {
-            if (file.type.startsWith('image/')) {
+            const fileType = file.type;
+
+            if (fileType.startsWith('image/')) {
+                // Preview image files
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const img = document.createElement('img');
                     img.src = e.target.result;
-                    imagesContainer.appendChild(img);
+                    img.style.maxWidth = '100px';
+                    img.style.margin = '5px';
+                    filesContainer.appendChild(img);
                 };
                 reader.readAsDataURL(file);
+            } else if (fileType.startsWith('video/')) {
+                // Preview video files
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const video = document.createElement('video');
+                    video.src = e.target.result;
+                    video.controls = true;
+                    video.style.maxWidth = '200px';
+                    video.style.margin = '5px';
+                    filesContainer.appendChild(video);
+                };
+                reader.readAsDataURL(file);
+            } else if (fileType.startsWith('audio/')) {
+                // Preview audio files
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const audio = document.createElement('audio');
+                    audio.src = e.target.result;
+                    audio.controls = true;
+                    audio.style.margin = '5px';
+                    filesContainer.appendChild(audio);
+                };
+                reader.readAsDataURL(file);
+            } else if (fileType === 'application/pdf') {
+                // Preview PDF files
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const iframe = document.createElement('iframe');
+                    iframe.src = e.target.result;
+                    iframe.style.width = '100%';
+                    iframe.style.height = '200px';
+                    iframe.style.margin = '10px 0';
+                    filesContainer.appendChild(iframe);
+                };
+                reader.readAsDataURL(file);
+            }else if (
+            fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || // .docx
+            fileType === 'application/msword' || // .doc
+            fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || // .xlsx
+            fileType === 'application/vnd.ms-excel' // .xls
+        ) {
+            // Display Word/Excel document names with download links
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(file);
+            link.textContent = `Download: ${file.name}`;
+            link.download = file.name;
+            link.style.display = 'block';
+            link.style.margin = '5px';
+            filesContainer.appendChild(link);
+        } else if (fileType.startsWith('text/')) {
+            // Preview text files
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const pre = document.createElement('pre');
+                pre.textContent = e.target.result;
+                pre.style.maxWidth = '300px';
+                pre.style.maxHeight = '200px';
+                pre.style.margin = '5px';
+                pre.style.whiteSpace = 'pre-wrap';
+                filesContainer.appendChild(pre);
+            };
+            reader.readAsText(file);
+        }
+            else {
+                // Display other files with download links
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(file);
+                link.textContent = `Download: ${file.name}`;
+                link.download = file.name;
+                link.style.display = 'block';
+                link.style.margin = '5px';
+                filesContainer.appendChild(link);
             }
         }
     });
 
-    document.getElementById('record-audio-btn').addEventListener('click', function() {
-        alert("Audio recording feature is coming soon!");
-    });
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
 
+        const recordButton = document.getElementById("record-audio-btn");
+        const responseDiv = document.getElementById("response-display");
+        const promptInput = document.getElementById("prompt");
+        const audioDisplayDiv = document.getElementById("textarea-images");
+
+        // Check for browser support for audio recording
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Your browser does not support audio recording.");
+            recordButton.disabled = true;
+        } else {
+            recordButton.addEventListener("click", async () => {
+                if (!isRecording) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+                        mediaRecorder.ondataavailable = (event) => {
+                            audioChunks.push(event.data);
+                        };
+
+                        mediaRecorder.onstop = async () => {
+                            const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+                            audioChunks = [];
+
+                            const audioUrl = URL.createObjectURL(audioBlob);
+                            const audioElement = document.createElement("audio");
+                            audioElement.controls = true;
+                            audioElement.src = audioUrl;
+
+                            audioDisplayDiv.innerHTML = "";
+                            audioDisplayDiv.appendChild(audioElement);
+
+                            // Convert WebM to MP3
+                            const audioBuffer = await audioBlob.arrayBuffer();
+                            const formData = new FormData();
+                            formData.append("file", new Blob([audioBuffer], { type: "audio/mp3" }), "recording.mp3");
+                            formData.append("prompt", promptInput.value);
+
+                            try {
+                                const response = await fetch("/predict", {
+                                    method: "POST",
+                                    body: formData,
+                                });
+
+                                const data = await response.json();
+                                if (data.response_html) {
+                                    responseDiv.innerHTML = `
+                                        <div class="card mt-3">
+                                            <div class="card-header">User Input:</div>
+                                            <div class="card-body"><p>${data.prompt}</p></div>
+                                        </div>
+                                        <div class="card mt-3">
+                                            <div class="card-header">Model Response:</div>
+                                            <div class="card-body"><div>${data.response_html}</div></div>
+                                        </div>`;
+                                } else {
+                                    alert(data.error || "An error occurred while processing the request.");
+                                }
+                            } catch (error) {
+                                alert("Error sending audio: " + error.message);
+                            }
+                        };
+
+                        mediaRecorder.start();
+                        recordButton.innerHTML = '<i class="fas fa-stop"></i> Stop Recording';
+                        isRecording = true;
+                    } catch (error) {
+                        alert("Error accessing microphone: " + error.message);
+                    }
+                } else {
+                    mediaRecorder.stop();
+                    recordButton.innerHTML = '<i class="fas fa-microphone"></i> Record Audio';
+                    isRecording = false;
+                }
+            });
+        }
     document.getElementById('submit-btn').addEventListener('click', function() {
         const form = document.getElementById('input-form');
         const formData = new FormData(form);
-
+        const promptValue = formData.get("prompt");
         const imagesContainer = document.getElementById('textarea-images');
         imagesContainer.innerHTML = ""; // Clear image previews
-        document.getElementById('prompt').value = ""; // Clear textarea
 
         if (currentEditingIndex !== null) {
+            // Edit existing history
             fetch(`/edit-history/${currentEditingIndex}`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ prompt: formData.get("prompt") })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt: promptValue })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    viewHistory(currentEditingIndex);
+                    const responseDiv = document.getElementById('response-display');
+                    responseDiv.innerHTML = `
+                        <div class="card mt-3">
+                            <div class="card-header">User Input:</div>
+                            <div class="card-body"><p>${data.prompt}</p></div>
+                        </div>
+                        <div class="card mt-3">
+                            <div class="card-header">Model Response:</div>
+                            <div class="card-body"><div>${data.response_html}</div></div>
+                        </div>`;
+
+                    // Refresh the page or interaction history
+                    location.reload();
                 } else {
-                    alert("Failed to update the history.");
+                    alert(data.error || "Failed to update history.");
                 }
             });
         } else {
+            // Add new input
             fetch("/predict", {
                 method: "POST",
                 body: formData
@@ -232,17 +397,20 @@
                     responseDiv.innerHTML = `
                         <div class="card mt-3">
                             <div class="card-header">User Input:</div>
-                           <div class="card-body"><p>${data.prompt}</p></div>
+                            <div class="card-body"><p>${data.prompt}</p></div>
                         </div>
                         <div class="card mt-3">
                             <div class="card-header">Model Response:</div>
                             <div class="card-body"><div>${data.response_html}</div></div>
                         </div>`;
+                    //location.reload();
                 }
             });
         }
-    });
 
+        currentEditingIndex = null; // Reset editing index
+        document.getElementById('prompt').value = ""; // Clear textarea
+    });
     function viewHistory(index) {
         fetch(`/view-history/${index}`)
         .then(response => response.json())
@@ -273,7 +441,16 @@
                 alert(data.error);
             } else {
                 document.getElementById('prompt').value = data.prompt;
-                viewHistory(index);
+                const responseDiv = document.getElementById('response-display');
+                responseDiv.innerHTML = `
+                    <div class="card mt-3">
+                        <div class="card-header">User Input:</div>
+                        <div class="card-body"><p>${data.prompt}</p></div>
+                    </div>
+                    <div class="card mt-3">
+                        <div class="card-header">Model Response:</div>
+                        <div class="card-body"><div>${data.response_html}</div></div>
+                    </div>`;
             }
         });
     }

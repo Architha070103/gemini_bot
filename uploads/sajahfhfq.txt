@@ -1,0 +1,50 @@
+Create a dynamic form generator that takes a JSON schema and generates a styled, functional form in real-time. The application should display the JSON editor and the generated form side by side.
+
+
+
+
+give me the project structure along with the exact working code for the all the files with explanation
+
+
+
+Left side: JSON editor 
+Syntax highlighting for JSON 
+Real-time JSON validation  for all html input type fields
+Error messages for invalid JSON 
+
+Right side: Generated form preview 
+Updates in real-time as JSON is edited 
+Responsive form layout 
+Proper error states and validation  for all html input type fields
+
+
+
+Use TypeScript for type safety 
+Create proper interfaces for the JSON schema 
+Handle JSON validation gracefully  for all html input type fields
+Real-time form generation and validation  for all html input type fields
+Proper error boundaries for both editor and form 
+Mobile-responsive layout (stack editor and preview on smaller screens)
+
+
+
+Support all field types from the schema 
+Show proper validation messages  for all html input type fields
+Have loading states where appropriate 
+Submit data to console.log() 
+Show success message after submission 
+Be styled consistently using Tailwind CSS
+
+
+Add a "Copy Form JSON" button 
+Implement form field validation preview  for all html input type fields
+Add dark mode support 
+Add ability to download form submissions as JSON
+
+
+
+use these technologies to develop the project
+React 18+ 
+TypeScript 
+Tailwind CSS 
+React Hook Form
