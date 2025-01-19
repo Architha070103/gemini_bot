@@ -75,7 +75,10 @@
         }
 
         .response-display {
+            width: 90%;
+            max-width: 500px;
             margin-top: 20px;
+            text-align: left;
         }
 
         .textarea-wrapper {
@@ -336,14 +339,14 @@
                         };
 
                         mediaRecorder.start();
-                        recordButton.innerHTML = '<i class="fas fa-stop"></i> Stop Recording';
+                        recordButton.innerHTML = '<i class="fas fa-stop" style="color:red"></i> ';
                         isRecording = true;
                     } catch (error) {
                         alert("Error accessing microphone: " + error.message);
                     }
                 } else {
                     mediaRecorder.stop();
-                    recordButton.innerHTML = '<i class="fas fa-microphone"></i> Record Audio';
+                    recordButton.innerHTML = '<i class="fas fa-microphone" ></i>';
                     isRecording = false;
                 }
             });
